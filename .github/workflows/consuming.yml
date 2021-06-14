@@ -8,7 +8,7 @@ on:
 jobs:
   e2e:
     name: E2E
-    timeout-minutes: 30
+      #timeout-minutes: 50
     runs-on: ubuntu-latest
     if: |
       ( github.event.action == 'labeled' && github.event.label.name == 'e2e-projects' )
@@ -16,33 +16,15 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        project: ['admiral', 'submariner', 'submariner-operator', 'lighthouse']
-        deploytool: ['operator', 'helm']
+        project: ['submariner']
+        deploytool: ['operator']
         cabledriver: ['libreswan']
-        k8s_version: ['1.17']
-        exclude:
-          # Admiral E2E doesn't respect deploy-tool params, as it uses clusters without Submariner
-          - project: admiral
-            deploytool: helm
-          # Operator and Helm are mutually exclusive, don't try to use Helm in Operator repo
-          - project: submariner-operator
-            deploytool: helm
-        include:
-          # Test the same set of cable driver combinations as the consuming projects do in their CI
-          - project: submariner
-            cabledriver: wireguard
-            deploytool: operator
-            k8s_version: '1.17'
-          # Test multiple K8s versions only in submariner-operator, balancing coverage and jobs
-          - project: submariner-operator
-            k8s_version: '1.18'
-          - project: submariner-operator
-            k8s_version: '1.19'
-          - project: submariner-operator
-            k8s_version: '1.20'
+        k8s_version: ['1.20']
     steps:
       - name: Check out the Shipyard repository
         uses: actions/checkout@v2
+        with:
+          submodules: true
 
       - name: Build the latest Shipyard image
         run: make images
@@ -59,11 +41,16 @@ jobs:
       - name: Make sure ${{ matrix.project }} is using the built Shipyard image
         run: sed -i 's/shipyard-dapper-base:*.*/shipyard-dapper-base:dev/' ${{ matrix.project }}/Dockerfile.dapper
 
+      - name: Setup tmate session
+        uses: mxschmitt/action-tmate@v3
+          #with:
+            #limit-access-to-actor: true
+
       - name: Run E2E deployment and tests
         uses: ./gh-actions/e2e
         with:
           k8s_version: ${{ matrix.k8s_version }}
-          using: ${{ matrix.cabledriver }} ${{ matrix.deploytool }}
+          using: ${{ matrix.cabledriver }} ${{ matrix.deploytool }} ovn
           working-directory: ./${{ matrix.project }}
 
       - name: Post mortem
