@@ -97,7 +97,7 @@ preload-images: images
 	done
 
 # [deploy] deploys Submariner on KIND clusters
-deploy: clusters preload-images
+deploy: images clusters preload-images
 	$(SCRIPTS_DIR)/deploy.sh $(DEPLOY_ARGS)
 
 # [e2e] executes the project's end to end testing on the deployed KIND clusters
